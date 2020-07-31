@@ -1,0 +1,115 @@
+简介
+oxidized 简介
+oxidized 是一个网络设备备份系统, 轻量级,可扩展,支持超过90多个操作系统，同时支持h3c,华为,思科。
+环境搭建
+服务器操作系统推荐使用ubuntu ,CentOS, Oracle Linux, Red Hat Linux,FreeBSD 也都是支持的。
+oxidized安装
+yum install -y centos-release-scl
+yum install -y rh-ruby23 rh-ruby23-ruby-devel
+scl enable rh-ruby23 bash
+yum install -y make cmake which sqlite-devel openssl-devel libssh2-devel ruby gcc ruby-devel libicu-devel gcc-c++
+gem install oxidized
+gem install oxidized-script oxidized-web
+初始化
+oxidized
+配置
+---
+username: username
+password: password
+model: junos
+resolve_dns: true
+interval: 86400
+use_syslog: false
+debug: false
+threads: 30
+timeout: 20
+retries: 3
+prompt: !ruby/regexp /^([\w.@-]+[#>]\s?)$/
+rest: 127.0.0.1:8888
+next_adds_job: false
+vars:
+  remove_secret: true
+groups: {}
+models: {}
+pid: "/root/.config/oxidized/pid"
+crash:
+  directory: "/root/.config/oxidized/crashes"
+  hostnames: false
+stats:
+  history_size: 10
+input:
+  default: ssh, telnet
+  debug: false
+  ssh:
+    secure: false
+  ftp:
+    passive: true
+  utf8_encoded: true
+output: #配置输出到github
+  default: git
+  git:
+    user: xxx
+    email: xxx@163.com
+    repo: "/data/config.git"
+hooks:
+  push_to_remote:
+    type: githubrepo
+    events: [post_store]
+    remote_repo: git@github.com:xxx/config.git
+    publickey: /root/.config/oxidized/.ssh/id_rsa.pub
+    privatekey: /root/.config/oxidized/.ssh/id_rsa 
+source:
+  default: csv
+  csv:
+    file: "/root/.config/oxidized/router.db"
+    delimiter: !ruby/regexp /:/
+    map:
+      name: 0
+      model: 1
+      ip: 2
+      username: 3
+      password: 4
+model_map:
+  juniper: junos
+  cisco: ios
+默认配置备份文件输出至文件夹
+输出
+output:
+  default: file
+  file:
+    directory: "/home/oxidized/.config/oxidized/configs"
+设备源
+source:
+  default: csv
+  csv:
+    file: "/root/.config/oxidized/router.db"
+    delimiter: !ruby/regexp /:/
+    map:
+      name: 0
+      model: 1
+      ip: 2
+      username: 3
+      password: 4
+由router.db文件中读取设备信息，定义router.db文件格式为，以：分割
+设备名称:设备类型:IP地址:用户名:密码
+
+安装nginx代理
+yum install -y httpd-tools nginx
+htpasswd -c /etc/apache2/.htpasswd oxidized
+配置
+server {
+        listen 80;
+        listen [::]:80;
+        server_name 192.168.52.215;
+
+        auth_basic "oxidized web UI login";
+        auth_basic_user_file /etc/apache2/.htpasswd;
+
+        location / {
+                proxy_pass http://127.0.0.1:8888/;
+        }
+
+        access_log /var/log/nginx/access_oxidized.log;
+        error_log /var/log/nginx/error_oxidized.log;
+}
+
